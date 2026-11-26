@@ -1,4 +1,4 @@
-package app.llm
+package com.androidharness.app.llm
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow

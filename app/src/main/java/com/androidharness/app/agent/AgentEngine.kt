@@ -250,8 +250,22 @@ class AgentEngine(
             ContextHygiene.shrinkToolResults(history.map { it.withImagesResolved() }),
             maxContextTokens, options.maxOutputTokens,
         ).toMutableList()
+        // Tool call fallback: if the routed model never emits tool calls and
+        // never produces an answer, rotate to a tool-capable model from the
+        // existing provider pool. Initialized once per run, bounded by the
+        // list size so it can never loop forever.
+        var activeConfig = config
+        val maxConsecutiveNoToolCalls = 3
+        val toolCapableModels = listOf(
+            "nvidia/nemotron-3-ultra-550b-a55b:free",
+            "nvidia/nemotron-3.5-super-vl:free",
+            "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free",
+        )
+        var currentModelIndex = 0
+        val originalModel = config.model
+        var consecutiveNoToolCalls = 0
         // If active model is known to be text-only, strip image data upfront
-        if (!com.androidharness.app.llm.visionCapable(config.model)) {
+        if (!com.androidharness.app.llm.visionCapable(activeConfig.model)) {
             val sanitized = ContextHygiene.stripImages(working)
             working.clear()
             working.addAll(sanitized)
@@ -266,16 +280,6 @@ class AgentEngine(
         // actually produce its answer.
         var lastFinishReason: String? = null
         var answerNudges = 0
-        // Tool call fallback: if the routed model never emits tool calls and
-        // never produces an answer, rotate to a tool-capable model from the
-        // existing provider pool. Initialized once per run, bounded by the
-        // list size so it can never loop forever.
-        var activeConfig = config
-        val maxConsecutiveNoToolCalls = 3
-        val toolCapableModels = listOf("nvidia/nemotron-3-ultra-550b-a55b:free")
-        var currentModelIndex = 0
-        val originalModel = config.model
-        var consecutiveNoToolCalls = 0
 
         while (true) {
             kotlin.coroutines.coroutineContext[TaskBudget]?.check()

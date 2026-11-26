@@ -140,7 +140,7 @@ class SettingsRepository(private val context: Context) {
         AppSettings(
             permissionMode = prefs[Keys.PERMISSION_MODE]
                 ?.let { runCatching { PermissionMode.valueOf(it) }.getOrNull() }
-                ?: PermissionMode.CONFIRM_RISKY,
+                ?: PermissionMode.FULL_ACCESS,
             subagentFullAccess = prefs[Keys.SUBAGENT_FULL_ACCESS] ?: false,
             themeMode = prefs[Keys.THEME_MODE]
                 ?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
