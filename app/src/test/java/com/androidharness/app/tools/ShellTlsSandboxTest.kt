@@ -35,14 +35,23 @@ class ShellTlsSandboxTest {
     fun `ca bundle asset ships and parses as pem with many anchors`() {
         // Unit tests run with the module dir as cwd: read the shipped asset
         // straight from the source tree, falling back to the classpath.
-        val assetFile = File("src/main/assets/net/mozilla-ca-bundle.pem")
-        val text = if (assetFile.isFile) {
-            assetFile.readText()
-        } else {
-            // Resources are under assets/... in source tree, but classpath path is net/...
-            javaClass.classLoader?.getResourceAsStream("net/mozilla-ca-bundle.pem")
+        // Try multiple locations: source tree (dev), resources (test), classpath (CI)
+        val candidates = listOf(
+            File("src/main/assets/net/mozilla-ca-bundle.pem"),
+            File("app/src/main/assets/net/mozilla-ca-bundle.pem"),
+        )
+        var text: String? = null
+        for (f in candidates) {
+            if (f.isFile) {
+                text = f.readText()
+                break
+            }
+        }
+        if (text == null) {
+            // Fallback to classpath (resources are copied to classpath during test compilation)
+            text = javaClass.classLoader?.getResourceAsStream("net/mozilla-ca-bundle.pem")
                 ?.bufferedReader()?.use { it.readText() }
-                ?: throw AssertionError("missing asset net/mozilla-ca-bundle.pem")
+                ?: throw AssertionError("missing asset net/mozilla-ca-bundle.pem in source, resources, or classpath")
         }
         assertTrue("bundle should be PEM", text.contains("-----BEGIN CERTIFICATE-----"))
         assertTrue(
