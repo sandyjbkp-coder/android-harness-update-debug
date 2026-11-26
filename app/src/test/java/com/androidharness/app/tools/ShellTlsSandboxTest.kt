@@ -39,7 +39,8 @@ class ShellTlsSandboxTest {
         val text = if (assetFile.isFile) {
             assetFile.readText()
         } else {
-            javaClass.classLoader?.getResourceAsStream("assets/net/mozilla-ca-bundle.pem")
+            // Resources are under assets/... in source tree, but classpath path is net/...
+            javaClass.classLoader?.getResourceAsStream("net/mozilla-ca-bundle.pem")
                 ?.bufferedReader()?.use { it.readText() }
                 ?: throw AssertionError("missing asset net/mozilla-ca-bundle.pem")
         }
