@@ -7,8 +7,8 @@ import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.time.LocalDateTime
 import java.time.ZoneOffset
+import java.time.format.ResolverStyle
 import java.util.Locale
-import java.util.concurrent.TimeUnit
 
 /**
  * Decides which provider failures are worth retrying and how long to wait.
@@ -121,7 +121,7 @@ internal object RetryPolicy {
         // IMF-fixdate and RFC 850 (both include zone)
         val zonedFormats = listOf(
             DateTimeFormatter.RFC_1123_DATE_TIME, // IMF-fixdate: Sun, 06 Nov 1994 08:49:37 GMT
-            DateTimeFormatter.ofPattern("EEEE, dd-MMM-yy HH:mm:ss z", Locale.US), // RFC 850: Sunday, 06-Nov-94 08:49:37 GMT
+            DateTimeFormatter.ofPattern("EEEE, dd-MMM-yy HH:mm:ss z", Locale.US).withResolverStyle(ResolverStyle.LENIENT), // RFC 850: Sunday, 06-Nov-94 08:49:37 GMT
         )
         for (fmt in zonedFormats) {
             try {
