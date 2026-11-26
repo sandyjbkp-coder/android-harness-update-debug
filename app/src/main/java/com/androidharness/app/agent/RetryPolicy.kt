@@ -5,6 +5,9 @@ import java.io.IOException
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
+import java.time.LocalDateTime
+import java.time.ZoneOffset
+import java.util.Locale
 
 /**
  * Decides which provider failures are worth retrying and how long to wait.
@@ -86,8 +89,9 @@ internal object RetryPolicy {
         headers["x-ratelimit-reset"]?.trim()?.let { value ->
             val epoch = value.toLongOrNull()
             if (epoch != null) {
-                // Heuristic: if > 1e12, treat as millis; else seconds
-                val resetMs = if (epoch > 1_000_000_000_000L) epoch else epoch * 1000L
+            // Heuristic: if the value is already in the future relative to nowMs,
+            // treat it as millis (same unit as nowMs); otherwise assume epoch seconds.
+            val resetMs = if (epoch > nowMs) epoch else epoch * 1000L
                 val remaining = resetMs - nowMs
                 if (remaining >= 0) return remaining
                 return 0L // past → 0 delay
@@ -116,7 +120,7 @@ internal object RetryPolicy {
         // IMF-fixdate and RFC 850 (both include zone)
         val zonedFormats = listOf(
             DateTimeFormatter.RFC_1123_DATE_TIME, // IMF-fixdate: Sun, 06 Nov 1994 08:49:37 GMT
-            DateTimeFormatter.ofPattern("EEEE, dd-MMM-yy HH:mm:ss z"), // RFC 850: Sunday, 06-Nov-94 08:49:37 GMT
+            DateTimeFormatter.ofPattern("EEEE, dd-MMM-yy HH:mm:ss z", Locale.US), // RFC 850: Sunday, 06-Nov-94 08:49:37 GMT
         )
         for (fmt in zonedFormats) {
             try {
