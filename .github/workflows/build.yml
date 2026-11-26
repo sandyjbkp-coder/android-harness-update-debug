@@ -1,0 +1,82 @@
+name: CI APK build
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_type:
+        description: "Build type (ciDebug or ciRelease)"
+        required: true
+        default: "ciDebug"
+        type: choice
+        options:
+          - ciDebug
+          - ciRelease
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-build
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          api-level: 37
+          build-tools: "37.0.0"
+
+      - name: Set up Gradle (caching)
+        uses: gradle/actions/setup-gradle@v6
+
+      - name: Extract source archive
+        run: |
+          SHA=$(sha256sum AndroidHarness_CI_Publish_Clean_Source_20261120.tar.gz | cut -d' ' -f1)
+          echo "Source archive SHA-256: $SHA"
+          mkdir -p source-tree
+          tar xzf AndroidHarness_CI_Publish_Clean_Source_20261120.tar.gz -C source-tree
+
+      - name: Verify HarnessProvider.kt SHA-256
+        run: |
+          HP_SHA=$(sha256sum source-tree/app/src/main/java/com/androidharness/app/llm/HarnessProvider.kt | cut -d' ' -f1)
+          echo "HarnessProvider.kt SHA-256: $HP_SHA"
+
+      - name: Build CI APK
+        run: |
+          cd source-tree
+          ./gradlew :app:assembleCiDebug --no-daemon --stacktrace
+
+      - name: Verify APK
+        id: verify
+        run: |
+          APK_PATH="source-tree/app/build/outputs/apk/ci/debug/app-ci-debug.apk"
+          if [ ! -f "$APK_PATH" ]; then
+            echo "ERROR: APK not found at $APK_PATH"
+            exit 1
+          fi
+          SIZE=$(stat -c%s "$APK_PATH" 2>/dev/null || stat -f%z "$APK_PATH" 2>/dev/null)
+          SHA=$(sha256sum "$APK_PATH" | cut -d' ' -f1)
+          echo "APK_PATH=$APK_PATH" >> $GITHUB_OUTPUT
+          echo "APK_SIZE=$SIZE" >> $GITHUB_OUTPUT
+          echo "APK_SHA256=$SHA" >> $GITHUB_OUTPUT
+          echo "APK size: $SIZE bytes"
+          echo "APK SHA-256: $SHA"
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: androidharness-ci-debug-apk
+          path: source-tree/app/build/outputs/apk/ci/debug/app-ci-debug.apk
+          retention-days: 30
