@@ -301,17 +301,17 @@ fun ConnectorsScreen(
         }
     }
 
-    // Modal switch capabilities dialog
-    activeConnectorForDialog?.let { connector ->
+    // Modal switch capabilities dialog - rendered within Composable context
+    if (activeConnectorForDialog != null) {
         CapabilityDialog(
             show = true,
-            title = "${connector.name} Capabilities",
-            capabilities = connector.capabilities,
+            title = "${activeConnectorForDialog!!.name} Capabilities",
+            capabilities = activeConnectorForDialog!!.capabilities,
             onDismiss = { activeConnectorForDialog = null },
             onConfirm = { activeConnectorForDialog = null }
         )
         // If the Facebook connector is selected, also display fetched user info
-        if (connector.id == "facebook" && fbInfo.isNotBlank()) {
+        if (activeConnectorForDialog!!.id == "facebook" && fbInfo.isNotBlank()) {
             AlertDialog(
                 onDismissRequest = { /* keep dialog open until OK */ },
                 title = { Text(text = "Facebook User Info") },
