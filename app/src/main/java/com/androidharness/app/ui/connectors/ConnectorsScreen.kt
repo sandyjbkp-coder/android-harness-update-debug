@@ -220,19 +220,6 @@ fun ConnectorsScreen(
                         .clip(RoundedCornerShape(16.dp))
                         .clickable {
                             activeConnectorForDialog = connector
-                            if (connector.id == "facebook") {
-                                // Fetch Facebook user info asynchronously
-                                LaunchedEffect(Unit) {
-                                    try {
-                                        val json = withContext(Dispatchers.IO) {
-                                            URL("https://graph.facebook.com/v21.0/me?fields=id,name&access_token=[redacted]").readText()
-                                        }
-                                        fbInfo = json
-                                    } catch (e: Exception) {
-                                        fbInfo = "Error: ${e.message}"
-                                    }
-                                }
-                            }
                         }
                         .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f), RoundedCornerShape(16.dp))
                 ) {
