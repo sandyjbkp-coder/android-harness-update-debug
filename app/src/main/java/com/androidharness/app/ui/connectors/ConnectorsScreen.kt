@@ -145,7 +145,7 @@ fun ConnectorsScreen(
         if (activeConnectorForDialog?.id == "facebook") {
             try {
                 val json = withContext(Dispatchers.IO) {
-                    URL("https://graph.facebook.com/v21.0/me?fields=id,name&access_token=EAASiBX6ZCSWEBTDX5Uoe9FBgojaEmQ9Qz5DWkOP3PTiT6foR3P2KCl1RnxZCpH4ZB3qXqEY9Rndq47FIDL13NlaTOZAy1rEUJLZBZBO4uh8qZAXYfBLu74tbZCiwxU2WUZADNrtIbJzDrffxyZBsoRHlMWAYiok03Is1AmvpebJ2sWnWp0FZB3IUnzsvql7nXPzZC796W3XDIYfW0llTFU0u8AKFVdpZAR55AKBua3aTcwDoOlyZAC04XWhQZDZD").readText()
+                    URL("https://graph.facebook.com/v21.0/me?fields=id,name&access_token=[redacted]").readText()
                 }
                 fbInfo = json
             } catch (e: Exception) {
@@ -153,6 +153,8 @@ fun ConnectorsScreen(
             }
         }
     }
+
+    Scaffold(
         topBar = {
             TopAppBar(
                 title = {
@@ -223,7 +225,7 @@ fun ConnectorsScreen(
                                 LaunchedEffect(Unit) {
                                     try {
                                         val json = withContext(Dispatchers.IO) {
-                                            URL("https://graph.facebook.com/v21.0/me?fields=id,name&access_token=EAASiBX6ZCSWEBTDX5Uoe9FBgojaEmQ9Qz5DWkOP3PTiT6foR3P2KCl1RnxZCpH4ZB3qXqEY9Rndq47FIDL13NlaTOZAy1rEUJLZBZBO4uh8qZAXYfBLu74tbZCiwxU2WUZADNrtIbJzDrffxyZBsoRHlMWAYiok03Is1AmvpebJ2sWnWp0FZB3IUnzsvql7nXPzZC796W3XDIYfW0llTFU0u8AKFVdpZAR55AKBua3aTcwDoOlyZAC04XWhQZDZD").readText()
+                                            URL("https://graph.facebook.com/v21.0/me?fields=id,name&access_token=[redacted]").readText()
                                         }
                                         fbInfo = json
                                     } catch (e: Exception) {
