@@ -1,0 +1,114 @@
+#!/bin/bash
+# agent-status - System status checker
+# Part of Android Self-Healing Autonomous Agent
+
+set -euo pipefail
+
+AGENT_ROOT="/storage/emulated/0/Download/AndroidHarness-CI-main/AndroidHarness-CI-main/agent"
+MEMORY_ROOT="$AGENT_ROOT/memory"
+LOG_DIR="$AGENT_ROOT/logs"
+
+# Colors
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+NC='\033[0m'
+
+echo "=== Android Self-Healing Agent Status ==="
+echo "Timestamp: $(date)"
+echo ""
+
+# Check agent root
+echo "--- Agent Infrastructure ---"
+if [[ -d "$AGENT_ROOT" ]]; then
+    echo -e "${GREEN}✓${NC} Agent root: $AGENT_ROOT"
+else
+    echo -e "${RED}✗${NC} Agent root missing: $AGENT_ROOT"
+fi
+
+# Check directories
+for dir in bin skills memory/knowledge memory/sessions memory/indexes memory/autostart logs workspace setup monitoring/live diagnosis env; do
+    if [[ -d "$AGENT_ROOT/$dir" ]]; then
+        echo -e "${GREEN}✓${NC} $dir"
+    else
+        echo -e "${RED}✗${NC} $dir (missing)"
+    fi
+done
+
+echo ""
+echo "--- Memory System ---"
+for file in failure-patterns.md retry-policy.md command-repair-playbook.md; do
+    if [[ -f "$MEMORY_ROOT/knowledge/$file" ]]; then
+        lines=$(wc -l < "$MEMORY_ROOT/knowledge/$file")
+        echo -e "${GREEN}✓${NC} $file ($lines lines)"
+    else
+        echo -e "${RED}✗${NC} $file (missing)"
+    fi
+done
+
+for file in session-init.md retrieval-guard.md failure-guard.md command-guard.md; do
+    if [[ -f "$MEMORY_ROOT/autostart/$file" ]]; then
+        echo -e "${GREEN}✓${NC} $file"
+    else
+        echo -e "${YELLOW}⚠${NC} $file (missing)"
+    fi
+done
+
+echo ""
+echo "--- Monitoring ---"
+for file in metrics.md logs.md alerts.md dashboards.md improvement-loop.md; do
+    if [[ -f "$AGENT_ROOT/monitoring/$file" ]]; then
+        echo -e "${GREEN}✓${NC} $file"
+    else
+        echo -e "${YELLOW}⚠${NC} $file (missing)"
+    fi
+done
+
+for file in log-schema.json metric-schema.json alert-schema.json; do
+    if [[ -f "$AGENT_ROOT/monitoring/live/$file" ]]; then
+        echo -e "${GREEN}✓${NC} $file"
+    else
+        echo -e "${YELLOW}⚠${NC} $file (missing)"
+    fi
+done
+
+echo ""
+echo "--- Scripts ---"
+for script in agent agent-run agent-status root; do
+    if [[ -f "$AGENT_ROOT/bin/$script" ]] && [[ -x "$AGENT_ROOT/bin/$script" ]]; then
+        echo -e "${GREEN}✓${NC} $script (executable)"
+    elif [[ -f "$AGENT_ROOT/bin/$script" ]]; then
+        echo -e "${YELLOW}⚠${NC} $script (not executable)"
+    else
+        echo -e "${RED}✗${NC} $script (missing)"
+    fi
+done
+
+echo ""
+echo "--- Logs (last 7 days) ---"
+log_count=$(find "$LOG_DIR" -name "*.jsonl" -mtime -7 2>/dev/null | wc -l)
+if [[ $log_count -gt 0 ]]; then
+    echo -e "${GREEN}✓${NC} $log_count log files in last 7 days"
+    find "$LOG_DIR" -name "*.jsonl" -mtime -7 -exec basename {} \; | sort | tail -5 | sed 's/^/  /'
+else
+    echo -e "${YELLOW}⚠${NC} No recent log files"
+fi
+
+echo ""
+echo "--- Workspace ---"
+ws_count=$(find "$AGENT_ROOT/workspace" -type f 2>/dev/null | wc -l)
+echo "Files in workspace: $ws_count"
+
+echo ""
+echo "--- Environment ---"
+if [[ -f "$AGENT_ROOT/env/android-dev.env" ]]; then
+    echo -e "${GREEN}✓${NC} android-dev.env"
+    source "$AGENT_ROOT/env/android-dev.env"
+    echo "  CHROOT_ROOT=$CHROOT_ROOT"
+    echo "  PATH=$PATH"
+else
+    echo -e "${YELLOW}⚠${NC} android-dev.env (missing)"
+fi
+
+echo ""
+echo "=== Status Check Complete ==="

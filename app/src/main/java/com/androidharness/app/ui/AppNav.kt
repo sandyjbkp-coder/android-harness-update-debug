@@ -645,6 +645,16 @@ fun AppNav(container: AppContainer) {
                         },
                     )
                     DrawerRow(
+                        icon = { Icon(Icons.Outlined.AutoMode, contentDescription = null) },
+                        title = "Connectors & Integrations",
+                        subtitle = "Gmail, Chrome, Meta Ads, Facebook, Sheets, Drive",
+                        selected = currentRoute == "connectors",
+                        onClick = {
+                            scope.launch { drawerState.close() }
+                            nav.navigate("connectors")
+                        },
+                    )
+                    DrawerRow(
                         icon = { Icon(Icons.Outlined.Settings, contentDescription = null) },
                         title = "Settings",
                         subtitle = "Agent, workspace and appearance",
@@ -855,9 +865,37 @@ fun AppNav(container: AppContainer) {
                     },
                 )
             }
+            composable("connectors") {
+                com.androidharness.app.ui.connectors.ConnectorsScreen(
+                    onBack = { nav.popBackStack() }
+                )
+            }
+        }
+        val showDock = currentRoute?.let { r ->
+            r == "chat" || r.startsWith("chat/") || r == "files" || r == "terminal" || r == "connectors" || r == "settings"
+        } ?: true
+        if (showDock) {
+            com.androidharness.app.ui.components.AmoledDockBar(
+                currentRoute = currentRoute,
+                onNavigateChat = {
+                    scope.launch { container.settings.setLastActiveSessionId(null) }
+                    nav.navigate("chat") { popUpTo("chat") { inclusive = true } }
+                },
+                onNavigateConnectors = {
+                    nav.navigate("connectors")
+                },
+                onNavigateFiles = {
+                    nav.navigate("files")
+                },
+                onNavigateTerminal = {
+                    nav.navigate("terminal")
+                },
+                onNavigateSettings = {
+                    nav.navigate("settings")
+                }
+            )
         }
     }
-
     }
 
     // Workspace switching from the drawer + chat overflow shares one sheet.

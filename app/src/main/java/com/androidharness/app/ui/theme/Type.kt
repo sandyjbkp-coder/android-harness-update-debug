@@ -25,6 +25,13 @@ val GoogleSans = FontFamily(Font(R.font.google_sans_flex_variable))
 val HarnessMono = FontFamily(Font(R.font.noto_sans_mono_variable))
 
 /**
+ * Squiggly — the default accent font for progress bars, meters, rings, task pills
+ * and the cache/context indicators. Currently aliases NotoSansMono until the real
+ * Squiggly font ships; swap the resource to `R.font.squiggly` once it lands.
+ */
+val Squiggly = FontFamily(Font(R.font.noto_sans_mono_variable))
+
+/**
  * Tuned M3 Expressive type scale on Google Sans Flex.
  *
  * Skipped letter-spacing on large display/headline roles reads more like Google's

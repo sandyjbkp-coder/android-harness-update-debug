@@ -1,0 +1,93 @@
+{
+  "version": "1.0",
+  "updated": "2024-01-15T00:00:00Z",
+  "root": "/storage/emulated/0/Download/AndroidHarness-CI-main/AndroidHarness-CI-main/agent/memory",
+  "categories": {
+    "knowledge": {
+      "path": "knowledge",
+      "files": [
+        {
+          "name": "failure-patterns.md",
+          "description": "6 documented failure patterns with 12-type taxonomy",
+          "lines": 180,
+          "tags": ["failure", "patterns", "taxonomy", "classification"],
+          "last_modified": "2024-01-15T00:00:00Z"
+        },
+        {
+          "name": "retry-policy.md",
+          "description": "Retry budgets, backoff strategies, header-aware delays",
+          "lines": 220,
+          "tags": ["retry", "policy", "backoff", "rate-limit", "headers"],
+          "last_modified": "2024-01-15T00:00:00Z"
+        },
+        {
+          "name": "command-repair-playbook.md",
+          "description": "6 verified fixes with automation snippets",
+          "lines": 380,
+          "tags": ["repair", "playbook", "fixes", "automation", "verified"],
+          "last_modified": "2024-01-15T00:00:00Z"
+        }
+      ]
+    },
+    "autostart": {
+      "path": "autostart",
+      "files": [
+        {
+          "name": "session-init.md",
+          "description": "9 mandatory memory loading steps on session start",
+          "lines": 190,
+          "tags": ["autostart", "session", "initialization", "memory-loading"],
+          "last_modified": "2024-01-15T00:00:00Z"
+        },
+        {
+          "name": "retrieval-guard.md",
+          "description": "Pre-command search rules for failure prevention",
+          "lines": 170,
+          "tags": ["retrieval", "guard", "pre-command", "prevention"],
+          "last_modified": "2024-01-15T00:00:00Z"
+        },
+        {
+          "name": "failure-guard.md",
+          "description": "Post-failure capture, diagnose, fix, save loop",
+          "lines": 400,
+          "tags": ["failure", "guard", "post-failure", "diagnosis", "self-healing"],
+          "last_modified": "2024-01-15T00:00:00Z"
+        },
+        {
+          "name": "command-guard.md",
+          "description": "Pre-execution safety and validity checks",
+          "lines": 280,
+          "tags": ["command", "guard", "pre-execution", "safety", "validation"],
+          "last_modified": "2024-01-15T00:00:00Z"
+        }
+      ]
+    },
+    "sessions": {
+      "path": "sessions",
+      "description": "Session-specific data, auto-cleaned after 90 days",
+      "files": []
+    },
+    "logs": {
+      "path": "logs",
+      "description": "Structured JSONL logs, auto-cleaned after 30 days",
+      "files": []
+    }
+  },
+  "search_index": {
+    "failure_patterns": [
+      "FP-001", "FP-002", "FP-003", "FP-004", "FP-005", "FP-006"
+    ],
+    "fixes": [
+      "FIX-001", "FIX-002", "FIX-003", "FIX-004", "FIX-005", "FIX-006"
+    ],
+    "failure_types": [
+      "TRANSIENT", "PERMANENT", "CONFIGURATION", "MISSING_DEPENDENCY",
+      "WRONG_PATH", "WRONG_SYNTAX", "PERMISSION", "RATE_LIMIT",
+      "NETWORK", "TIMEOUT", "VALIDATION", "UNKNOWN"
+    ],
+    "command_families": [
+      "gradle", "./gradlew", "clang", "clang++", "java", "git",
+      "curl", "wget", "adb", "su"
+    ]
+  }
+}

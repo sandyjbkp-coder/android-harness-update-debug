@@ -1,0 +1,189 @@
+#!/bin/bash
+# agent-run - Root command executor with logging and self-healing
+# Part of Android Self-Healing Autonomous Agent
+
+set -euo pipefail
+
+AGENT_ROOT="/storage/emulated/0/Download/AndroidHarness-CI-main/AndroidHarness-CI-main/agent"
+MEMORY_ROOT="$AGENT_ROOT/memory"
+LOG_FILE="$AGENT_ROOT/logs/agent-run-$(date +%Y%m%d).jsonl"
+METRICS_FILE="$AGENT_ROOT/logs/metrics-$(date +%Y%m%d).jsonl"
+
+# Load environment
+source "$AGENT_ROOT/env/android-dev.env" 2>/dev/null || true
+
+# Retry policy config
+MAX_ATTEMPTS=3
+BASE_DELAY=1
+MAX_DELAY=8
+
+# Classify failure type
+classify_failure() {
+    local error="$1"
+    local exit_code="$2"
+
+    case "$error" in
+        *"connection refused"*|*"connection reset"*|*"timeout"*|*"timed out"*)
+            echo "TRANSIENT"
+            ;;
+        *"permission denied"*|*"not permitted"*|*"access denied"*)
+            echo "PERMISSION"
+            ;;
+        *"rate limit"*|*"too many requests"*|*"429"*)
+            echo "RATE_LIMIT"
+            ;;
+        *"not found"*|*"no such file"*|*"no such directory"*)
+            echo "MISSING_DEPENDENCY"
+            ;;
+        *"syntax error"*|*"invalid option"*|*"unrecognized argument"*)
+            echo "WRONG_SYNTAX"
+            ;;
+        *"wrong path"*|*"invalid path"*|*"path does not exist"*)
+            echo "WRONG_PATH"
+            ;;
+        *"network"*|*"dns"*|*"resolve"*)
+            echo "NETWORK"
+            ;;
+        *"configuration"*|*"config"*|*"misconfig"*)
+            echo "CONFIGURATION"
+            ;;
+        *"validation"*|*"invalid input"*|*"malformed"*)
+            echo "VALIDATION"
+            ;;
+        *)
+            if [[ $exit_code -eq 124 ]] || [[ $exit_code -eq 137 ]]; then
+                echo "TIMEOUT"
+            else
+                echo "UNKNOWN"
+            fi
+            ;;
+    esac
+}
+
+# Search memory for known fix
+search_fix() {
+    local failure_type="$1"
+    local command="$2"
+    grep -A 5 "$failure_type" "$MEMORY_ROOT/knowledge/command-repair-playbook.md" 2>/dev/null | head -10
+}
+
+# Parse Retry-After header (seconds or HTTP-date)
+parse_retry_after() {
+    local header="$1"
+    if [[ -z "$header" ]]; then
+        echo 0
+        return
+    fi
+    # Try as seconds
+    if [[ "$header" =~ ^[0-9]+$ ]]; then
+        echo "$header"
+        return
+    fi
+    # Try as HTTP-date
+    local retry_date=$(date -d "$header" +%s 2>/dev/null)
+    if [[ -n "$retry_date" ]]; then
+        local now=$(date +%s)
+        echo $((retry_date - now))
+        return
+    fi
+    echo 0
+}
+
+# Execute with retry and self-healing
+execute_with_retry() {
+    local cmd="$1"
+    local attempt=1
+    local last_error=""
+    local last_exit=0
+
+    while [[ $attempt -le $MAX_ATTEMPTS ]]; do
+        echo "Attempt $attempt/$MAX_ATTEMPTS: $cmd"
+
+        # Check retry budget
+        local sig=$(echo -n "$cmd" | sha256sum | cut -d' ' -f1 | cut -c1-16)
+        local attempts_today=$(grep -c "\"signature\":\"$sig\"" "$LOG_FILE" 2>/dev/null || echo 0)
+        if [[ $attempts_today -ge 3 ]]; then
+            echo "ERROR: Retry budget exhausted for command signature $sig"
+            return 1
+        fi
+
+        # Execute command
+        local start_time=$(date +%s%3N)
+        set +e
+        output=$(eval "$cmd" 2>&1)
+        exit_code=$?
+        set -e
+        local end_time=$(date +%s%3N)
+        local latency=$((end_time - start_time))
+
+        if [[ $exit_code -eq 0 ]]; then
+            # Success - log and return
+            echo "{\"timestamp\":\"$(date -Iseconds)\",\"level\":\"INFO\",\"event\":\"command_success\",\"command\":\"$cmd\",\"latency_ms\":$latency,\"attempt\":$attempt}" >> "$LOG_FILE"
+            echo "$output"
+            return 0
+        fi
+
+        last_error="$output"
+        last_exit=$exit_code
+
+        # Classify failure
+        local failure_type=$(classify_failure "$output" "$exit_code")
+        echo "Failure type: $failure_type"
+
+        # Log failure
+        echo "{\"timestamp\":\"$(date -Iseconds)\",\"level\":\"ERROR\",\"event\":\"command_failure\",\"command\":\"$cmd\",\"exit_code\":$exit_code,\"failure_type\":\"$failure_type\",\"error\":\"$output\",\"latency_ms\":$latency,\"attempt\":$attempt}" >> "$LOG_FILE"
+
+        # Search for known fix
+        local fix=$(search_fix "$failure_type" "$cmd")
+        if [[ -n "$fix" ]]; then
+            echo "Found known fix in memory:"
+            echo "$fix"
+            # Apply fix would go here - for now just log
+        fi
+
+        # Calculate backoff
+        local delay=0
+        case "$failure_type" in
+            "RATE_LIMIT")
+                # Parse Retry-After if available in output
+                local retry_after=$(echo "$output" | grep -i "retry-after" | head -1 | sed 's/.*[Rr]etry-[Aa]fter[:=]\s*//' | awk '{print $1}')
+                delay=$(parse_retry_after "$retry_after")
+                [[ $delay -eq 0 ]] && delay=$((BASE_DELAY * (2 ** (attempt - 1))))
+                ;;
+            "TIMEOUT"|"TRANSIENT"|"NETWORK")
+                delay=$((BASE_DELAY * (2 ** (attempt - 1))))
+                ;;
+            *)
+                delay=$((BASE_DELAY * (2 ** (attempt - 1))))
+                ;;
+        esac
+
+        # Add jitter
+        delay=$((delay + RANDOM % 1000 / 1000))
+
+        echo "Waiting ${delay}s before retry..."
+        sleep "$delay"
+
+        attempt=$((attempt + 1))
+    done
+
+    # All attempts failed
+    echo "{\"timestamp\":\"$(date -Iseconds)\",\"level\":\"ERROR\",\"event\":\"command_exhausted\",\"command\":\"$cmd\",\"final_exit_code\":$last_exit,\"final_error\":\"$last_error\",\"attempts\":$MAX_ATTEMPTS}" >> "$LOG_FILE"
+    return $last_exit
+}
+
+# Main
+main() {
+    local cmd="${1:-}"
+    if [[ -z "$cmd" ]]; then
+        echo "Usage: agent-run \"<command>\""
+        exit 1
+    fi
+
+    echo "{\"timestamp\":\"$(date -Iseconds)\",\"level\":\"INFO\",\"event\":\"agent_run_start\",\"command\":\"$cmd\"}" >> "$LOG_FILE"
+
+    # Execute with self-healing
+    execute_with_retry "$cmd"
+}
+
+main "$@"

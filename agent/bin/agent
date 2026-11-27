@@ -1,0 +1,76 @@
+#!/bin/bash
+# agent - Task planner with safety policy
+# Part of Android Self-Healing Autonomous Agent
+
+set -euo pipefail
+
+AGENT_ROOT="/storage/emulated/0/Download/AndroidHarness-CI-main/AndroidHarness-CI-main/agent"
+MEMORY_ROOT="$AGENT_ROOT/memory"
+LOG_FILE="$AGENT_ROOT/logs/agent-$(date +%Y%m%d).jsonl"
+
+# Load environment
+source "$AGENT_ROOT/env/android-dev.env" 2>/dev/null || true
+
+# Safety policy check
+check_safety() {
+    local task="$1"
+    # Add safety checks here (no rm -rf /, no system partition writes, etc.)
+    if [[ "$task" =~ (rm\s+-rf\s+/|dd\s+if=|mkfs|format|partition) ]]; then
+        echo "ERROR: Task violates safety policy" >&2
+        return 1
+    fi
+    return 0
+}
+
+# Load relevant memory
+load_memory() {
+    local task="$1"
+    echo "Loading memory for task: $task"
+    # Search failure patterns
+    grep -i "$(echo "$task" | cut -d' ' -f1)" "$MEMORY_ROOT/knowledge/failure-patterns.md" 2>/dev/null | head -5
+    # Search repair playbook
+    grep -i "$(echo "$task" | cut -d' ' -f1)" "$MEMORY_ROOT/knowledge/command-repair-playbook.md" 2>/dev/null | head -5
+}
+
+# Plan task
+plan_task() {
+    local task="$1"
+    echo "Planning task: $task"
+    # Simple planning - break into steps
+    cat > "$AGENT_ROOT/workspace/plan-$(date +%s).md" <<EOF
+# Task Plan: $task
+Generated: $(date)
+
+## Steps
+1. Analyze task requirements
+2. Check memory for similar tasks
+3. Execute with self-healing
+4. Verify results
+5. Save learnings
+
+## Safety Check
+$(check_safety "$task" && echo "PASSED" || echo "FAILED")
+
+## Memory References
+$(load_memory "$task")
+EOF
+}
+
+# Main
+main() {
+    local task="${1:-}"
+    if [[ -z "$task" ]]; then
+        echo "Usage: agent \"<task description>\""
+        exit 1
+    fi
+
+    echo "{\"timestamp\":\"$(date -Iseconds)\",\"level\":\"INFO\",\"event\":\"session_start\",\"task\":\"$task\"}" >> "$LOG_FILE"
+
+    check_safety "$task" || exit 1
+    plan_task "$task"
+
+    echo "Task planned. Execute with: agent-run \"<command>\""
+    echo "Plan saved to workspace/"
+}
+
+main "$@"

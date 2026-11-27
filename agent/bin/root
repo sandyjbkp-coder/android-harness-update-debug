@@ -1,0 +1,25 @@
+#!/bin/bash
+# root - Root shell wrapper for KernelSU
+# Part of Android Self-Healing Autonomous Agent
+
+set -euo pipefail
+
+# This wrapper executes commands with root privileges via KernelSU
+# Usage: root "command" or root -c "command"
+
+# Check if running in chroot environment
+if [[ -n "${CHROOT_ROOT:-}" ]] && [[ -d "$CHROOT_ROOT" ]]; then
+    # Inside chroot, use su directly
+    if [[ $# -eq 1 ]]; then
+        su -c "$1"
+    else
+        su -c "$*"
+    fi
+else
+    # Outside chroot, use KernelSU directly
+    if [[ $# -eq 1 ]]; then
+        su -c "$1"
+    else
+        su -c "$*"
+    fi
+fi
